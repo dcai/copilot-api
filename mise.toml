@@ -1,0 +1,4 @@
+[env]
+JSFIXER = "prettier"
+COPILOT_MODEL = "claude-sonnet-4.5"
+COPILOT_SMALL_MODEL = "gpt-4.1"
