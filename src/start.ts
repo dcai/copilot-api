@@ -13,6 +13,7 @@ import { state } from "./lib/state"
 import { setupCopilotToken, setupGitHubToken } from "./lib/token"
 import { cacheModels, cacheVSCodeVersion } from "./lib/utils"
 import { server } from "./server"
+import process from "node:process"
 
 interface RunServerOptions {
   port: number
@@ -69,20 +70,22 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   if (options.claudeCode) {
     invariant(state.models, "Models should be loaded by now")
 
-    const selectedModel = await consola.prompt(
-      "Select a model to use with Claude Code",
-      {
+    const selectedModel =
+      process.env.COPILOT_MODEL ||
+      (await consola.prompt("Select a model to use with Claude Code", {
         type: "select",
         options: state.models.data.map((model) => model.id),
-      },
-    )
+      }))
 
-    const selectedSmallModel = await consola.prompt(
-      "Select a small model to use with Claude Code",
-      {
+    const selectedSmallModel =
+      process.env.COPILOT_SMALL_MODEL ||
+      (await consola.prompt("Select a small model to use with Claude Code", {
         type: "select",
         options: state.models.data.map((model) => model.id),
-      },
+      }))
+
+    consola.success(
+      `Use main model [${selectedModel}] and small model [${selectedSmallModel}]`,
     )
 
     const command = generateEnvScript(
