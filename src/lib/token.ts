@@ -36,8 +36,20 @@ export const setupCopilotToken = async () => {
         consola.info("Refreshed Copilot token:", token)
       }
     } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "cause" in error &&
+        typeof (error as any).cause === "object" &&
+        (error as any).cause !== null &&
+        (error as any).cause &&
+        "code" in (error as any).cause &&
+        (error as any).cause.code === "ENOTFOUND"
+      ) {
+        consola.warn("Network unavailable while refreshing Copilot token; retaining previous token")
+        return
+      }
       consola.error("Failed to refresh Copilot token:", error)
-      throw error
     }
   }, refreshInterval)
 }
