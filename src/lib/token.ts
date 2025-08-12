@@ -10,10 +10,46 @@ import { pollAccessToken } from "~/services/github/poll-access-token"
 import { HTTPError } from "./error"
 import { state } from "./state"
 
+let refreshTimeoutId: NodeJS.Timeout | null = null
+
 const readGithubToken = () => fs.readFile(PATHS.GITHUB_TOKEN_PATH, "utf8")
 
 const writeGithubToken = (token: string) =>
   fs.writeFile(PATHS.GITHUB_TOKEN_PATH, token)
+
+const scheduleTokenRefresh = (delaySeconds: number) => {
+  if (refreshTimeoutId) {
+    clearTimeout(refreshTimeoutId)
+  }
+
+  refreshTimeoutId = setTimeout(async () => {
+    consola.debug("Refreshing Copilot token")
+    try {
+      const { token, refresh_in } = await getCopilotToken()
+      state.copilotToken = token
+      consola.debug("Copilot token refreshed")
+      if (state.showToken) {
+        consola.info("Refreshed Copilot token:", token)
+      }
+
+      // Schedule next refresh using the new refresh_in value
+      const nextRefreshInterval = refresh_in - 60
+      scheduleTokenRefresh(nextRefreshInterval)
+    } catch (error) {
+      if ((error as any)?.cause?.code === "ENOTFOUND") {
+        consola.warn(
+          "Network unavailable while refreshing Copilot token; retrying in 60 seconds",
+        )
+        // Retry in 60 seconds when network is unavailable
+        scheduleTokenRefresh(60)
+        return
+      }
+      consola.error("Failed to refresh Copilot token:", error)
+      // For other errors, retry with original interval (fallback)
+      scheduleTokenRefresh(60)
+    }
+  }, delaySeconds * 1000)
+}
 
 export const setupCopilotToken = async () => {
   const { token, refresh_in } = await getCopilotToken()
@@ -25,21 +61,9 @@ export const setupCopilotToken = async () => {
     consola.info("Copilot token:", token)
   }
 
-  const refreshInterval = (refresh_in - 60) * 1000
-  setInterval(async () => {
-    consola.debug("Refreshing Copilot token")
-    try {
-      const { token } = await getCopilotToken()
-      state.copilotToken = token
-      consola.debug("Copilot token refreshed")
-      if (state.showToken) {
-        consola.info("Refreshed Copilot token:", token)
-      }
-    } catch (error) {
-      consola.error("Failed to refresh Copilot token:", error)
-      throw error
-    }
-  }, refreshInterval)
+  // Schedule the first refresh using the received refresh_in value
+  const refreshInterval = refresh_in - 60
+  scheduleTokenRefresh(refreshInterval)
 }
 
 interface SetupGitHubTokenOptions {
