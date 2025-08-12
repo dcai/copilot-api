@@ -27,7 +27,7 @@ export const setupCopilotToken = async () => {
 
   const refreshInterval = (refresh_in - 60) * 1000
   setInterval(async () => {
-    consola.debug("Refreshing Copilot token")
+    consola.info(`Refresing in ${refreshInterval / 1000} seconds...`)
     try {
       const { token } = await getCopilotToken()
       state.copilotToken = token
@@ -36,8 +36,14 @@ export const setupCopilotToken = async () => {
         consola.info("Refreshed Copilot token:", token)
       }
     } catch (error) {
+      const code = (error as any)?.cause?.code
+      if (code === "ENOTFOUND") {
+        consola.warn(
+          "Network unavailable while refreshing Copilot token; retaining previous token",
+        )
+        return
+      }
       consola.error("Failed to refresh Copilot token:", error)
-      throw error
     }
   }, refreshInterval)
 }
