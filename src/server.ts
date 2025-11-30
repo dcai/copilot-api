@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/bun"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
@@ -13,6 +14,12 @@ export const server = new Hono()
 
 server.use(logger())
 server.use(cors())
+
+// Sentry error handling middleware
+server.onError((err, c) => {
+  Sentry.captureException(err)
+  return c.json({ error: "Internal server error" }, 500)
+})
 
 server.get("/", (c) => c.text("Server running"))
 
